@@ -1,3 +1,6 @@
+// tutorial link
+//  http://www.thebigblob.com/gaussian-blur-using-opencl-and-the-built-in-images-textures/
+
 //#define __NO_STD_VECTOR // Use cl::vector instead of STL version
 #include </opt/AMDAPP/include/CL/cl.hpp>
 #include <opencv2/core/core.hpp>
@@ -51,19 +54,6 @@ int main( int argc, char** argv )
     uint32_t imgSize = imageWidth * imageHeight;
     unsigned char* newData [imgSize];
 
-//    cv::Mat gray;
-//    cv::cvtColor(image, gray, CV_BGR2GRAY);
-
-//    unsigned char im[image.rows * image.cols];
-
-//    for (int i = 0; i < image.rows; i++) {
-//        for (int j = 0; j < image.cols; j++) {
-//          int val =  int( image.data[i*image.step + j] );
-//          im[image.cols * i + j] = val;
-//          //std::cout << "   " << val;
-//        }
-//    }
-
     cl::size_t<3> origin;
     origin[0] = 0; origin[1] = 0; origin[2] = 0;
     cl::size_t<3> region;
@@ -78,16 +68,6 @@ int main( int argc, char** argv )
     }
     cl::Platform default_platform=all_platforms[0];
     std::cout << "Using platform: "<<default_platform.getInfo<CL_PLATFORM_NAME>()<<"\n";
-
-//    // get default device of the default platform
-//    std::vector<cl::Device> all_devices;
-//    default_platform.getDevices(CL_DEVICE_TYPE_ALL, &all_devices);
-//    if(all_devices.size()==0){
-//        std::cout<<" No devices found. Check OpenCL installation!\n";
-//        exit(1);
-//    }
-//    cl::Device default_device=all_devices[0];
-//    std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n";
 
     // get first platform
     cl_platform_id platform;
@@ -145,23 +125,20 @@ int main( int argc, char** argv )
     //create queue to which we will push commands for the device.
     cl::CommandQueue queue(context,devices[0]);
 
+
     // Create an OpenCL Image / texture and transfer data to the device
     cl::Image2D clImage = cl::Image2D(context,
-                                      CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                      cl::ImageFormat(CL_R, CL_FLOAT),
-                                      image.rows,
-                                      image.cols,
-                                      0,
-                                      NULL);
+                                  CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                  cl::ImageFormat(CL_R, CL_FLOAT),
+                                  imageWidth,
+                                  imageHeight,
+                                  0,
+                                  image.data);
 
-    // Create an OpenCL Image for the result
-    cl::Image2D clResult = cl::Image2D(context,
-                                       CL_MEM_WRITE_ONLY,
-                                       cl::ImageFormat(CL_R, CL_FLOAT),
-                                       image.rows,
-                                       image.cols,
-                                       0,
-                                       NULL);
+    // Create a buffer for the result
+    cl::Buffer clResult = cl::Buffer(context,
+                                 CL_MEM_WRITE_ONLY,
+                                 sizeof(float)*imageWidth*imageHeight);
 
     // Create Gaussian mask
     int maskSize;
@@ -169,38 +146,26 @@ int main( int argc, char** argv )
 
     // Create buffer for mask and transfer it to the device
     cl::Buffer clMask = cl::Buffer(context,
-                                   CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                   sizeof(float)*(maskSize*2+1)*(maskSize*2+1),
-                                   mask);
+                               CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                               sizeof(float)*(maskSize*2+1)*(maskSize*2+1),
+                               mask);
 
-    // create Gaussian kernel
+    // Run Gaussian kernel
     cl::Kernel gaussianBlur = cl::Kernel(program, "gaussian_blur");
     gaussianBlur.setArg(0, clImage);
     gaussianBlur.setArg(1, clMask);
     gaussianBlur.setArg(2, clResult);
     gaussianBlur.setArg(3, maskSize);
 
-    // load image to device
-    queue.enqueueWriteImage(clImage,
-                            CL_TRUE,
-                            origin,
-                            region,
-                            0,0,
-                            image.data);
-
-    // Run Gaussian kernel
-    queue.enqueueNDRangeKernel(gaussianBlur,
-                            cl::NullRange,
-                            cl::NDRange(image.rows, image.cols),
-                            cl::NullRange);
+    queue.enqueueNDRangeKernel(
+        gaussianBlur,
+        cl::NullRange,
+        cl::NDRange(imageWidth, imageHeight),
+        cl::NullRange
+    );
 
     // Transfer image back to host
-    queue.enqueueReadImage(clResult,
-                           CL_TRUE,
-                           origin,
-                           region,
-                           0,0,
-                           newData);
+    queue.enqueueReadBuffer(clResult, CL_TRUE, 0, sizeof(float)*imageWidth*imageHeight, newData);
 
     cv::Mat newImage = cv::Mat(cv::Size(image.rows,image.cols), CV_8UC1, newData);
 

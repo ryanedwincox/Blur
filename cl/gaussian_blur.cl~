@@ -3,9 +3,9 @@ __constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_T
 __kernel void gaussian_blur(
         __global float * image,
         //__constant float * mask,
-        __global float * blurredImage,
-	int imageWidth,
-	int imageHeight
+        __global float * blurredImage//,
+	__private int imageWidth;
+	__private int imageHeight;
         //__private int maskSize
     ) {
  

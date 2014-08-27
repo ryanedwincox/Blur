@@ -1,6 +1,3 @@
-// tutorial link
-//  http://www.thebigblob.com/gaussian-blur-using-opencl-and-the-built-in-images-textures/
-
 //#define __NO_STD_VECTOR // Use cl::vector instead of STL version
 #include </opt/AMDAPP/include/CL/cl.hpp>
 #include <opencv2/core/core.hpp>
@@ -13,6 +10,7 @@
 #include <cstdio>
 
 #define MAX_SOURCE_SIZE (0x100000)
+#define MAX_LOG_SIZE (0x100000)
 
 float * createBlurMask(float sigma, int * maskSizePointer) {
     int maskSize = (int)ceil(3.0f*sigma);
@@ -39,6 +37,7 @@ int main( int argc, char** argv )
     // Load image
     cv::Mat image;
     image = cv::imread("/home/pierre/Documents/tutorials/blur/images/Lenna.png", CV_LOAD_IMAGE_UNCHANGED);   // Read the file
+    cv::Mat* imagePointer = &image;
 
     if(! image.data )                              // Check for invalid input
     {
@@ -46,18 +45,27 @@ int main( int argc, char** argv )
         return -1;
     }
 
-    size_t imageWidth = image.rows;
-    size_t imageHeight = image.cols;
+    size_t   imageWidth = image.cols;
+    size_t imageHeight = image.rows;
+    size_t imageSize = imageHeight * imageWidth;
     std::cout << "image width: " << imageWidth << "\n";
     std::cout << "image height: " << imageHeight << "\n";
 
     uint32_t imgSize = imageWidth * imageHeight;
     unsigned char* newData [imgSize];
 
-    cl::size_t<3> origin;
-    origin[0] = 0; origin[1] = 0; origin[2] = 0;
-    cl::size_t<3> region;
-    region[0] = image.rows; region[1] = image.cols; region[2] = 1;
+//    cv::Mat gray;
+//    cv::cvtColor(image, gray, CV_BGR2GRAY);
+
+//    unsigned char im[image.rows * image.cols];
+
+//    for (int i = 0; i < image.rows; i++) {
+//        for (int j = 0; j < image.cols; j++) {
+//          int val =  int( image.data[i*image.step + j] );
+//          im[image.cols * i + j] = val;
+//          //std::cout << "   " << val;
+//        }
+//    }
 
     // get all platforms (drivers)
     std::vector<cl::Platform> all_platforms;
@@ -68,6 +76,16 @@ int main( int argc, char** argv )
     }
     cl::Platform default_platform=all_platforms[0];
     std::cout << "Using platform: "<<default_platform.getInfo<CL_PLATFORM_NAME>()<<"\n";
+
+//    // get default device of the default platform
+//    std::vector<cl::Device> all_devices;
+//    default_platform.getDevices(CL_DEVICE_TYPE_ALL, &all_devices);
+//    if(all_devices.size()==0){
+//        std::cout<<" No devices found. Check OpenCL installation!\n";
+//        exit(1);
+//    }
+//    cl::Device default_device=all_devices[0];
+//    std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n";
 
     // get first platform
     cl_platform_id platform;
@@ -84,15 +102,14 @@ int main( int argc, char** argv )
 
     // create a single context for all devices
     cl_context context = clCreateContext(NULL, deviceCount, devices, NULL, NULL, &err);
-    if (err == 0)
-    {
-        std::cout<<"Context created\n";
-    }
+    std::cout << "context error: " << err << "\n";
 
     // initialize
     FILE* programHandle;
-    char *programBuffer; char *programLog;
-    size_t programSize; size_t logSize;
+    char *programBuffer;
+//    char *programLog;
+    size_t programSize;
+//    size_t logSize;
     cl_program program;
 
     // get size of kernel source
@@ -110,70 +127,121 @@ int main( int argc, char** argv )
     // create program from buffer
     program = clCreateProgramWithSource(context, 1,
             (const char**) &programBuffer, &programSize, NULL);
-    free(programBuffer);
+//    free(programBuffer);
 
     // build program
     const char* buildOptions = "";
     cl_int warn = clBuildProgram(program, deviceCount, devices, buildOptions, NULL, NULL);
-    //std::cout<<"program warning: "<<warn<<"\n";
+    std::cout << "program error: " << warn << "\n";
 
-    if (warn == CL_SUCCESS)
-    {
-        std::cout<<"program created\n";
-    }
+    // create the log string and show it to the user. Then quit
+    char buildLog[MAX_LOG_SIZE];
+    err = clGetProgramBuildInfo(program,
+                          devices[0],
+                          CL_PROGRAM_BUILD_LOG,
+                          MAX_LOG_SIZE,
+                          &buildLog,
+                          NULL);
+    printf("**BUILD LOG**\n%s",buildLog);
+//    free(buildLog);
+    std::cout << "clGetProgramBuildInfo error: " << err << "\n";
+
+//    CL_SUCCESS
 
     //create queue to which we will push commands for the device.
-    cl::CommandQueue queue(context,devices[0]);
-
+    cl_command_queue queue;
+    queue = clCreateCommandQueue(context,devices[0],0,&err);
+    std::cout << "command queue error: " << err << "\n";
 
     // Create an OpenCL Image / texture and transfer data to the device
-    cl::Image2D clImage = cl::Image2D(context,
-                                  CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                  cl::ImageFormat(CL_R, CL_FLOAT),
-                                  imageWidth,
-                                  imageHeight,
-                                  0,
-                                  image.data);
+    cl_mem clImage = clCreateBuffer(context,
+                                    CL_MEM_READ_ONLY,
+                                    imageSize,
+                                    NULL,
+                                    &err);
+    std::cout << "clImage error: " << err << "\n";
 
-    // Create a buffer for the result
-    cl::Buffer clResult = cl::Buffer(context,
-                                 CL_MEM_WRITE_ONLY,
-                                 sizeof(float)*imageWidth*imageHeight);
+    // Create an OpenCL Image for the result
+    cl_mem clResult = clCreateBuffer(context,
+                                     CL_MEM_WRITE_ONLY,
+                                     imageSize,
+                                     NULL,
+                                     &err);
+    std::cout << "clResult error: " << err << "\n";
 
     // Create Gaussian mask
     int maskSize;
     float * mask = createBlurMask(10.0f, &maskSize);
 
-    // Create buffer for mask and transfer it to the device
-    cl::Buffer clMask = cl::Buffer(context,
-                               CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                               sizeof(float)*(maskSize*2+1)*(maskSize*2+1),
-                               mask);
+    // Create buffer for mask
+    cl_mem clMask = clCreateBuffer(context,
+                                   CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                   sizeof(float)*(maskSize*2+1)*(maskSize*2+1),
+                                   mask,
+                                   &err);
+    std::cout << "clMask error: " << err << "\n";
+
+    // create Gaussian kernel
+    cl_kernel gaussianBlur = clCreateKernel(program, "gaussian_blur", &err);
+    std::cout << "cl_kernel error: " << err << "\n";
+    err = clSetKernelArg(gaussianBlur, 0, sizeof(cl_mem), (void *)&clImage);
+    std::cout << "kernel arg 0 error: " << err << "\n";
+//    clSetKernelArg(gaussianBlur, 1, sizeof(cl_mem), &clMask);
+    err = clSetKernelArg(gaussianBlur, 1, sizeof(cl_mem), (void *)&clResult);
+    std::cout << "kernel arg 1 error: " << err << "\n";
+    err = clSetKernelArg(gaussianBlur, 2, sizeof(int), &imageWidth);
+    std::cout << "kernel arg 2 error: " << err << "\n";
+    err = clSetKernelArg(gaussianBlur, 3, sizeof(int), &imageHeight);
+    std::cout << "kernel arg 3 error: " << err << "\n";
+//    clSetKernelArg(gaussianBlur, 5, sizeof(cl_int), &maskSize);
+
+    // load image to device
+    err = clEnqueueWriteBuffer(queue,
+                               clImage,
+                               CL_TRUE,
+                               0,
+                               imageSize,
+                               (void*) imagePointer,
+                               0,
+                               NULL,
+                               NULL);
+    std::cout << "enqueueWriteImage error: " << err << "\n";
+
+    // Set local and global workgroup sizes
+    size_t localws[2] = {16,16};
+    size_t globalws[2] = {imageWidth, imageHeight};
 
     // Run Gaussian kernel
-    cl::Kernel gaussianBlur = cl::Kernel(program, "gaussian_blur");
-    gaussianBlur.setArg(0, clImage);
-    gaussianBlur.setArg(1, clMask);
-    gaussianBlur.setArg(2, clResult);
-    gaussianBlur.setArg(3, maskSize);
-
-    queue.enqueueNDRangeKernel(
-        gaussianBlur,
-        cl::NullRange,
-        cl::NDRange(imageWidth, imageHeight),
-        cl::NullRange
-    );
+    err = clEnqueueNDRangeKernel(queue,
+                                 gaussianBlur,
+                                 2,
+                                 0,
+                                 globalws,
+                                 localws,
+                                 0,
+                                 NULL,
+                                 NULL);
+    std::cout << "clEnqueueNDRangeKernel error: " << err << "\n";
 
     // Transfer image back to host
-    queue.enqueueReadBuffer(clResult, CL_TRUE, 0, sizeof(float)*imageWidth*imageHeight, newData);
+    err = clEnqueueReadBuffer(queue,
+                              clResult,
+                              CL_TRUE,
+                              0,
+                              imageSize,
+                              (void*) newData,
+                              NULL,
+                              NULL,
+                              NULL);
+    std::cout << "enqueueReadImage error: " << err << "\n";
 
-    cv::Mat newImage = cv::Mat(cv::Size(image.rows,image.cols), CV_8UC1, newData);
+    cv::Mat newImage = cv::Mat(cv::Size(imageWidth,imageHeight), CV_8UC1, newData);
 
-    cv::namedWindow( "Original Image", cv::WINDOW_AUTOSIZE );// Create a window for display.
-    cv::imshow( "Original Image", image );                   // Show our image inside it.
+    cv::namedWindow("Original Image", cv::WINDOW_AUTOSIZE);// Create a window for display.
+    cv::imshow("Original Image", image);                   // Show our image inside it.
 
-    cv::namedWindow( "Blured Image", cv::WINDOW_AUTOSIZE );// Create a window for display.
-    cv::imshow( "Blured Image", newImage );            // Show our image inside it.
+    cv::namedWindow("Blured Image", cv::WINDOW_AUTOSIZE);// Create a window for display.
+    cv::imshow("Blured Image", newImage);            // Show our image inside it.
 
     cv::waitKey(0);
 }

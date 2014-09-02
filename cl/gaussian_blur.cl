@@ -1,5 +1,3 @@
-__constant sampler_t sampler = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST;
- 
 __kernel void gaussian_blur(
         __global float * image,
         //__constant float * mask,
@@ -27,5 +25,5 @@ __kernel void gaussian_blur(
     const int ypos = get_global_id(1); 
 
     blurredImage[ypos * imageWidth + xpos] = image[ypos * imageWidth + xpos];
-
+    //blurredImage[ypos * imageWidth + xpos] = -100;
 }

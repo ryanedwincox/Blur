@@ -36,14 +36,17 @@ int main( int argc, char** argv )
 {
     // Load image
     cv::Mat image;
-    image = cv::imread("/home/pierre/Documents/tutorials/blur/images/Lenna.png", CV_LOAD_IMAGE_UNCHANGED);   // Read the file
-    cv::Mat* imagePointer = &image;
+    image = cv::imread("/home/pierre/Documents/tutorials/blur/images/Lenna.png", CV_LOAD_IMAGE_GRAYSCALE);   // Read the file
+
+    std::cout << "Image depth: " << image.depth() << "\n";
 
     if(! image.data )                              // Check for invalid input
     {
-        std::cout <<  "Could not open or find the image" << std::endl ;
+        std::cout <<  "Could not open or find the image" << std::endl;
         return -1;
     }
+
+    std::cout << "*** pixel value: " << image.at<float>(100,100) << "\n";
 
     size_t   imageWidth = image.cols;
     size_t imageHeight = image.rows;
@@ -51,21 +54,20 @@ int main( int argc, char** argv )
     std::cout << "image width: " << imageWidth << "\n";
     std::cout << "image height: " << imageHeight << "\n";
 
-    uint32_t imgSize = imageWidth * imageHeight;
-    unsigned char* newData [imgSize];
-
-//    cv::Mat gray;
-//    cv::cvtColor(image, gray, CV_BGR2GRAY);
-
-//    unsigned char im[image.rows * image.cols];
-
-//    for (int i = 0; i < image.rows; i++) {
-//        for (int j = 0; j < image.cols; j++) {
-//          int val =  int( image.data[i*image.step + j] );
-//          im[image.cols * i + j] = val;
-//          //std::cout << "   " << val;
-//        }
+    uint imgSize = imageWidth * imageHeight;
+//    float a = 0.5;
+//    cl_uchar * newData [imgSize];
+    float * newData [imgSize];
+//    float data [imageSize];
+//    for (int i = 0; i < imgSize; i++) {
+//        data[i] = 0.5;
 //    }
+//    image = cv::Mat(cv::Size(imageWidth,imageHeight), CV_32FC1, data);
+
+//    // convert to grayscale
+//    cv::cvtColor(image, image, CV_BGR2GRAY);
+
+//    std::cout << "*** pixel value: " << image.at<float>(100,100) << "\n";
 
     // get all platforms (drivers)
     std::vector<cl::Platform> all_platforms;
@@ -156,7 +158,7 @@ int main( int argc, char** argv )
     // Create an OpenCL Image / texture and transfer data to the device
     cl_mem clImage = clCreateBuffer(context,
                                     CL_MEM_READ_ONLY,
-                                    imageSize,
+                                    4*imageSize,
                                     NULL,
                                     &err);
     std::cout << "clImage error: " << err << "\n";
@@ -164,7 +166,7 @@ int main( int argc, char** argv )
     // Create an OpenCL Image for the result
     cl_mem clResult = clCreateBuffer(context,
                                      CL_MEM_WRITE_ONLY,
-                                     imageSize,
+                                     4*imageSize,
                                      NULL,
                                      &err);
     std::cout << "clResult error: " << err << "\n";
@@ -184,6 +186,8 @@ int main( int argc, char** argv )
     // create Gaussian kernel
     cl_kernel gaussianBlur = clCreateKernel(program, "gaussian_blur", &err);
     std::cout << "cl_kernel error: " << err << "\n";
+
+    // set kernel arguments
     err = clSetKernelArg(gaussianBlur, 0, sizeof(cl_mem), (void *)&clImage);
     std::cout << "kernel arg 0 error: " << err << "\n";
 //    clSetKernelArg(gaussianBlur, 1, sizeof(cl_mem), &clMask);
@@ -200,8 +204,8 @@ int main( int argc, char** argv )
                                clImage,
                                CL_TRUE,
                                0,
-                               imageSize,
-                               (void*) imagePointer,
+                               4*imageSize,
+                               (void*) &image,
                                0,
                                NULL,
                                NULL);
@@ -215,7 +219,7 @@ int main( int argc, char** argv )
     err = clEnqueueNDRangeKernel(queue,
                                  gaussianBlur,
                                  2,
-                                 0,
+                                 NULL,
                                  globalws,
                                  localws,
                                  0,
@@ -228,14 +232,18 @@ int main( int argc, char** argv )
                               clResult,
                               CL_TRUE,
                               0,
-                              imageSize,
+                              4*imageSize,
                               (void*) newData,
                               NULL,
                               NULL,
                               NULL);
     std::cout << "enqueueReadImage error: " << err << "\n";
 
-    cv::Mat newImage = cv::Mat(cv::Size(imageWidth,imageHeight), CV_8UC1, newData);
+    cv::Mat newImage = cv::Mat(cv::Size(imageWidth,imageHeight), CV_32FC1, newData);
+
+    std::cout << "*** pixel value: " << newImage.at<float>(2,2) << "\n";
+
+    std::cout << "Image depth: " << image.depth() << "\n";
 
     cv::namedWindow("Original Image", cv::WINDOW_AUTOSIZE);// Create a window for display.
     cv::imshow("Original Image", image);                   // Show our image inside it.

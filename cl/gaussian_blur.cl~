@@ -1,7 +1,7 @@
 __kernel void gaussian_blur(
-        __global float * image,
+        __global unsigned char * image,
         //__constant float * mask,
-        __global float * blurredImage,
+        __global unsigned char * blurredImage,
 	int imageWidth,
 	int imageHeight
         //__private int maskSize
@@ -24,6 +24,6 @@ __kernel void gaussian_blur(
     const int xpos = get_global_id(0);
     const int ypos = get_global_id(1); 
 
-    //blurredImage[ypos * imageWidth + xpos] = image[ypos * imageWidth + xpos];
-    blurredImage[ypos * imageWidth + xpos] = -100;
+    blurredImage[ypos * imageWidth + xpos] = image[1];
+    //blurredImage[ypos * imageWidth + xpos] = 100;
 }

@@ -38,36 +38,21 @@ int main( int argc, char** argv )
     cv::Mat image;
     image = cv::imread("/home/pierre/Documents/tutorials/blur/images/Lenna.png", CV_LOAD_IMAGE_GRAYSCALE);   // Read the file
 
-    std::cout << "Image depth: " << image.depth() << "\n";
-
     if(! image.data )                              // Check for invalid input
     {
         std::cout <<  "Could not open or find the image" << std::endl;
         return -1;
     }
 
-    std::cout << "*** pixel value: " << image.at<float>(100,100) << "\n";
-
-    size_t   imageWidth = image.cols;
+    size_t imageWidth = image.cols;
     size_t imageHeight = image.rows;
     size_t imageSize = imageHeight * imageWidth;
     std::cout << "image width: " << imageWidth << "\n";
     std::cout << "image height: " << imageHeight << "\n";
 
     uint imgSize = imageWidth * imageHeight;
-//    float a = 0.5;
-//    cl_uchar * newData [imgSize];
-    float * newData [imgSize];
-//    float data [imageSize];
-//    for (int i = 0; i < imgSize; i++) {
-//        data[i] = 0.5;
-//    }
-//    image = cv::Mat(cv::Size(imageWidth,imageHeight), CV_32FC1, data);
 
-//    // convert to grayscale
-//    cv::cvtColor(image, image, CV_BGR2GRAY);
-
-//    std::cout << "*** pixel value: " << image.at<float>(100,100) << "\n";
+    unsigned char newData [imgSize];
 
     // get all platforms (drivers)
     std::vector<cl::Platform> all_platforms;
@@ -78,16 +63,6 @@ int main( int argc, char** argv )
     }
     cl::Platform default_platform=all_platforms[0];
     std::cout << "Using platform: "<<default_platform.getInfo<CL_PLATFORM_NAME>()<<"\n";
-
-//    // get default device of the default platform
-//    std::vector<cl::Device> all_devices;
-//    default_platform.getDevices(CL_DEVICE_TYPE_ALL, &all_devices);
-//    if(all_devices.size()==0){
-//        std::cout<<" No devices found. Check OpenCL installation!\n";
-//        exit(1);
-//    }
-//    cl::Device default_device=all_devices[0];
-//    std::cout<< "Using device: "<<default_device.getInfo<CL_DEVICE_NAME>()<<"\n";
 
     // get first platform
     cl_platform_id platform;
@@ -109,9 +84,7 @@ int main( int argc, char** argv )
     // initialize
     FILE* programHandle;
     char *programBuffer;
-//    char *programLog;
     size_t programSize;
-//    size_t logSize;
     cl_program program;
 
     // get size of kernel source
@@ -129,7 +102,6 @@ int main( int argc, char** argv )
     // create program from buffer
     program = clCreateProgramWithSource(context, 1,
             (const char**) &programBuffer, &programSize, NULL);
-//    free(programBuffer);
 
     // build program
     const char* buildOptions = "";
@@ -145,10 +117,7 @@ int main( int argc, char** argv )
                           &buildLog,
                           NULL);
     printf("**BUILD LOG**\n%s",buildLog);
-//    free(buildLog);
     std::cout << "clGetProgramBuildInfo error: " << err << "\n";
-
-//    CL_SUCCESS
 
     //create queue to which we will push commands for the device.
     cl_command_queue queue;
@@ -158,7 +127,7 @@ int main( int argc, char** argv )
     // Create an OpenCL Image / texture and transfer data to the device
     cl_mem clImage = clCreateBuffer(context,
                                     CL_MEM_READ_ONLY,
-                                    4*imageSize,
+                                    imageSize,//
                                     NULL,
                                     &err);
     std::cout << "clImage error: " << err << "\n";
@@ -166,7 +135,7 @@ int main( int argc, char** argv )
     // Create an OpenCL Image for the result
     cl_mem clResult = clCreateBuffer(context,
                                      CL_MEM_WRITE_ONLY,
-                                     4*imageSize,
+                                     imageSize,//
                                      NULL,
                                      &err);
     std::cout << "clResult error: " << err << "\n";
@@ -204,8 +173,8 @@ int main( int argc, char** argv )
                                clImage,
                                CL_TRUE,
                                0,
-                               4*imageSize,
-                               (void*) &image,
+                               imageSize,//
+                               (void*) &image.data[0],
                                0,
                                NULL,
                                NULL);
@@ -232,18 +201,14 @@ int main( int argc, char** argv )
                               clResult,
                               CL_TRUE,
                               0,
-                              4*imageSize,
+                              imageSize,//
                               (void*) newData,
                               NULL,
                               NULL,
                               NULL);
     std::cout << "enqueueReadImage error: " << err << "\n";
 
-    cv::Mat newImage = cv::Mat(cv::Size(imageWidth,imageHeight), CV_32FC1, newData);
-
-    std::cout << "*** pixel value: " << newImage.at<float>(2,2) << "\n";
-
-    std::cout << "Image depth: " << image.depth() << "\n";
+    cv::Mat newImage = cv::Mat(cv::Size(imageWidth,imageHeight), CV_8UC1, newData);
 
     cv::namedWindow("Original Image", cv::WINDOW_AUTOSIZE);// Create a window for display.
     cv::imshow("Original Image", image);                   // Show our image inside it.

@@ -1,3 +1,4 @@
+//color
 //#define __NO_STD_VECTOR // Use cl::vector instead of STL version
 #include </opt/AMDAPP/include/CL/cl.hpp>
 #include <opencv2/core/core.hpp>
@@ -127,7 +128,7 @@ int main( int argc, char** argv )
     // Create an OpenCL Image / texture and transfer data to the device
     cl_mem clImage = clCreateBuffer(context,
                                     CL_MEM_READ_ONLY,
-                                    imageSize,//
+                                    imageSize,
                                     NULL,
                                     &err);
     std::cout << "clImage error: " << err << "\n";
@@ -135,7 +136,7 @@ int main( int argc, char** argv )
     // Create an OpenCL Image for the result
     cl_mem clResult = clCreateBuffer(context,
                                      CL_MEM_WRITE_ONLY,
-                                     imageSize,//
+                                     imageSize,
                                      NULL,
                                      &err);
     std::cout << "clResult error: " << err << "\n";
@@ -173,7 +174,7 @@ int main( int argc, char** argv )
                                clImage,
                                CL_TRUE,
                                0,
-                               imageSize,//
+                               imageSize,
                                (void*) &image.data[0],
                                0,
                                NULL,
@@ -201,7 +202,7 @@ int main( int argc, char** argv )
                               clResult,
                               CL_TRUE,
                               0,
-                              imageSize,//
+                              imageSize,
                               (void*) newData,
                               NULL,
                               NULL,

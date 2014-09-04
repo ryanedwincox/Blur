@@ -140,16 +140,16 @@ int main( int argc, char** argv )
     std::cout << "clResult error: " << err << "\n";
 
     // Create Gaussian mask
-    int maskSize;
-    float * mask = createBlurMask(10.0f, &maskSize);
+    int maskSize = 4;  // maskSize x maskSize square
+    //float * mask = createBlurMask(10.0f, &maskSize);
 
     // Create buffer for mask
-    cl_mem clMask = clCreateBuffer(context,
-                                   CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                   sizeof(float)*(maskSize*2+1)*(maskSize*2+1),
-                                   mask,
-                                   &err);
-    std::cout << "clMask error: " << err << "\n";
+//    cl_mem clMask = clCreateBuffer(context,
+//                                   CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+//                                   sizeof(float)*(maskSize*2+1)*(maskSize*2+1),
+//                                   mask,
+//                                   &err);
+//    std::cout << "clMask error: " << err << "\n";
 
     // create Gaussian kernel
     cl_kernel gaussianBlur = clCreateKernel(program, "gaussian_blur", &err);
@@ -165,7 +165,7 @@ int main( int argc, char** argv )
     std::cout << "kernel arg 2 error: " << err << "\n";
     err = clSetKernelArg(gaussianBlur, 3, sizeof(int), &imageHeight);
     std::cout << "kernel arg 3 error: " << err << "\n";
-//    clSetKernelArg(gaussianBlur, 5, sizeof(cl_int), &maskSize);
+    clSetKernelArg(gaussianBlur, 4, sizeof(cl_int), &maskSize);
 
     // load image to device
     err = clEnqueueWriteBuffer(queue,
@@ -215,7 +215,7 @@ int main( int argc, char** argv )
     cv::namedWindow("Blured Image", cv::WINDOW_AUTOSIZE);// Create a window for display.
     cv::imshow("Blured Image", newImage);            // Show our image inside it.
 
-    std::cout << "finish";
+    std::cout << "finish\n";
 
     cv::waitKey(0);
 }

@@ -1,3 +1,4 @@
+// gray branch
 //#define __NO_STD_VECTOR // Use cl::vector instead of STL version
 #include </opt/AMDAPP/include/CL/cl.hpp>
 #include <opencv2/core/core.hpp>

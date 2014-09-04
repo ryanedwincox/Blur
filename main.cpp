@@ -37,7 +37,7 @@ int main( int argc, char** argv )
 {
     // Load image
     cv::Mat image;
-    image = cv::imread("/home/pierre/Documents/tutorials/blur/images/Lenna.png", CV_LOAD_IMAGE_GRAYSCALE);   // Read the file
+    image = cv::imread("/home/pierre/Documents/tutorials/blur/images/Lenna.png", CV_LOAD_IMAGE_COLOR);   // Read the file
 
     if(! image.data )                              // Check for invalid input
     {
@@ -51,9 +51,7 @@ int main( int argc, char** argv )
     std::cout << "image width: " << imageWidth << "\n";
     std::cout << "image height: " << imageHeight << "\n";
 
-    uint imgSize = imageWidth * imageHeight;
-
-    unsigned char newData [imgSize];
+    unsigned char newData [imageSize * 3];
 
     // get all platforms (drivers)
     std::vector<cl::Platform> all_platforms;
@@ -128,7 +126,7 @@ int main( int argc, char** argv )
     // Create an OpenCL Image / texture and transfer data to the device
     cl_mem clImage = clCreateBuffer(context,
                                     CL_MEM_READ_ONLY,
-                                    imageSize,
+                                    imageSize * 3,
                                     NULL,
                                     &err);
     std::cout << "clImage error: " << err << "\n";
@@ -136,7 +134,7 @@ int main( int argc, char** argv )
     // Create an OpenCL Image for the result
     cl_mem clResult = clCreateBuffer(context,
                                      CL_MEM_WRITE_ONLY,
-                                     imageSize,
+                                     imageSize * 3,
                                      NULL,
                                      &err);
     std::cout << "clResult error: " << err << "\n";
@@ -174,7 +172,7 @@ int main( int argc, char** argv )
                                clImage,
                                CL_TRUE,
                                0,
-                               imageSize,
+                               imageSize * 3,
                                (void*) &image.data[0],
                                0,
                                NULL,
@@ -202,20 +200,22 @@ int main( int argc, char** argv )
                               clResult,
                               CL_TRUE,
                               0,
-                              imageSize,
+                              imageSize * 3,
                               (void*) newData,
                               NULL,
                               NULL,
                               NULL);
     std::cout << "enqueueReadImage error: " << err << "\n";
 
-    cv::Mat newImage = cv::Mat(cv::Size(imageWidth,imageHeight), CV_8UC1, newData);
+    cv::Mat newImage = cv::Mat(cv::Size(imageWidth,imageHeight), CV_8UC3, newData);
 
     cv::namedWindow("Original Image", cv::WINDOW_AUTOSIZE);// Create a window for display.
     cv::imshow("Original Image", image);                   // Show our image inside it.
 
     cv::namedWindow("Blured Image", cv::WINDOW_AUTOSIZE);// Create a window for display.
     cv::imshow("Blured Image", newImage);            // Show our image inside it.
+
+    std::cout << "finish";
 
     cv::waitKey(0);
 }

@@ -51,7 +51,7 @@ int main( int argc, char** argv )
     std::cout << "image width: " << imageWidth << "\n";
     std::cout << "image height: " << imageHeight << "\n";
 
-    unsigned char newData [imageSize * 3];
+    unsigned char newData [imageSize * 4];
 
     // get all platforms (drivers)
     std::vector<cl::Platform> all_platforms;
@@ -134,7 +134,7 @@ int main( int argc, char** argv )
     // Create an OpenCL Image for the result
     cl_mem clResult = clCreateBuffer(context,
                                      CL_MEM_WRITE_ONLY,
-                                     imageSize * 3,
+                                     imageSize * 4,
                                      NULL,
                                      &err);
     std::cout << "clResult error: " << err << "\n";
@@ -200,14 +200,14 @@ int main( int argc, char** argv )
                               clResult,
                               CL_TRUE,
                               0,
-                              imageSize * 3,
+                              imageSize * 4,
                               (void*) newData,
                               NULL,
                               NULL,
                               NULL);
     std::cout << "enqueueReadImage error: " << err << "\n";
 
-    cv::Mat newImage = cv::Mat(cv::Size(imageWidth,imageHeight), CV_8UC3, newData);
+    cv::Mat newImage = cv::Mat(cv::Size(imageWidth,imageHeight), CV_8UC4, newData);
 
     cv::namedWindow("Original Image", cv::WINDOW_AUTOSIZE);// Create a window for display.
     cv::imshow("Original Image", image);                   // Show our image inside it.

@@ -1,5 +1,5 @@
 __kernel void gaussian_blur(
-        __global uchar4 * image,
+        __global uchar * image,
         //__constant float * mask,
         __global uchar4 * blurredImage,
 	int imageWidth,
@@ -14,13 +14,19 @@ __kernel void gaussian_blur(
     clamp(xpos, r, imageWidth - r);
     clamp(ypos, r, imageHeight - r);
 
-    int pos = ypos * imageWidth + xpos;
+    int blurPos = ypos * imageWidth + xpos;
+    int imgPos = blurPos * 3;
     uchar4 sum = 0;
 
     for (int i = -r; i <= r; i++) {
 	for (int j = -r; j <= r; j++) {
-	    sum = sum + image[pos - imageWidth * j * 3 + i * 3] / (maskSize * maskSize);
+	    sum = sum + image[imgPos - imageWidth * j * 3 + i * 3] / (maskSize * maskSize);
 	}
     }
-    blurredImage[pos] = sum;
+    //blurredImage[blurPos] = sum;
+
+    blurredImage[blurPos].x = image[imgPos];
+    blurredImage[blurPos].y = image[imgPos + 1];
+    blurredImage[blurPos].z = image[imgPos + 2];
+    blurredImage[blurPos].w = 100;
 }

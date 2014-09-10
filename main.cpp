@@ -1,3 +1,4 @@
+//color
 //#define __NO_STD_VECTOR // Use cl::vector instead of STL version
 #include </opt/AMDAPP/include/CL/cl.hpp>
 #include <opencv2/core/core.hpp>
@@ -36,7 +37,7 @@ int main( int argc, char** argv )
 {
     // Load image
     cv::Mat image;
-    image = cv::imread("/home/pierre/Documents/tutorials/blur/images/Lenna.png", CV_LOAD_IMAGE_GRAYSCALE);   // Read the file
+    image = cv::imread("/home/pierre/Documents/tutorials/Blur/images/Lenna.png", CV_LOAD_IMAGE_COLOR);   // Read the file
 
     if(! image.data )                              // Check for invalid input
     {
@@ -50,9 +51,7 @@ int main( int argc, char** argv )
     std::cout << "image width: " << imageWidth << "\n";
     std::cout << "image height: " << imageHeight << "\n";
 
-    uint imgSize = imageWidth * imageHeight;
-
-    unsigned char newData [imgSize];
+    unsigned char newData [imageSize * 3];
 
     // get all platforms (drivers)
     std::vector<cl::Platform> all_platforms;
@@ -88,7 +87,7 @@ int main( int argc, char** argv )
     cl_program program;
 
     // get size of kernel source
-    programHandle = fopen("/home/pierre/Documents/tutorials/blur/cl/gaussian_blur.cl", "r");
+    programHandle = fopen("/home/pierre/Documents/tutorials/Blur/cl/gaussian_blur.cl", "r");
     fseek(programHandle, 0, SEEK_END);
     programSize = ftell(programHandle);
     rewind(programHandle);
@@ -127,7 +126,7 @@ int main( int argc, char** argv )
     // Create an OpenCL Image / texture and transfer data to the device
     cl_mem clImage = clCreateBuffer(context,
                                     CL_MEM_READ_ONLY,
-                                    imageSize,//
+                                    imageSize * 3,
                                     NULL,
                                     &err);
     std::cout << "clImage error: " << err << "\n";
@@ -135,22 +134,22 @@ int main( int argc, char** argv )
     // Create an OpenCL Image for the result
     cl_mem clResult = clCreateBuffer(context,
                                      CL_MEM_WRITE_ONLY,
-                                     imageSize,//
+                                     imageSize * 3,
                                      NULL,
                                      &err);
     std::cout << "clResult error: " << err << "\n";
 
     // Create Gaussian mask
-    int maskSize;
-    float * mask = createBlurMask(10.0f, &maskSize);
+    int maskSize = 3;  // maskSize x maskSize square
+    //float * mask = createBlurMask(10.0f, &maskSize);
 
     // Create buffer for mask
-    cl_mem clMask = clCreateBuffer(context,
-                                   CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                   sizeof(float)*(maskSize*2+1)*(maskSize*2+1),
-                                   mask,
-                                   &err);
-    std::cout << "clMask error: " << err << "\n";
+//    cl_mem clMask = clCreateBuffer(context,
+//                                   CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+//                                   sizeof(float)*(maskSize*2+1)*(maskSize*2+1),
+//                                   mask,
+//                                   &err);
+//    std::cout << "clMask error: " << err << "\n";
 
     // create Gaussian kernel
     cl_kernel gaussianBlur = clCreateKernel(program, "gaussian_blur", &err);
@@ -166,14 +165,14 @@ int main( int argc, char** argv )
     std::cout << "kernel arg 2 error: " << err << "\n";
     err = clSetKernelArg(gaussianBlur, 3, sizeof(int), &imageHeight);
     std::cout << "kernel arg 3 error: " << err << "\n";
-//    clSetKernelArg(gaussianBlur, 5, sizeof(cl_int), &maskSize);
+    clSetKernelArg(gaussianBlur, 4, sizeof(cl_int), &maskSize);
 
     // load image to device
     err = clEnqueueWriteBuffer(queue,
                                clImage,
                                CL_TRUE,
                                0,
-                               imageSize,//
+                               imageSize * 3,
                                (void*) &image.data[0],
                                0,
                                NULL,
@@ -201,20 +200,22 @@ int main( int argc, char** argv )
                               clResult,
                               CL_TRUE,
                               0,
-                              imageSize,//
+                              imageSize * 3,
                               (void*) newData,
                               NULL,
                               NULL,
                               NULL);
     std::cout << "enqueueReadImage error: " << err << "\n";
 
-    cv::Mat newImage = cv::Mat(cv::Size(imageWidth,imageHeight), CV_8UC1, newData);
+    cv::Mat newImage = cv::Mat(cv::Size(imageWidth,imageHeight), CV_8UC3, newData);
 
     cv::namedWindow("Original Image", cv::WINDOW_AUTOSIZE);// Create a window for display.
     cv::imshow("Original Image", image);                   // Show our image inside it.
 
     cv::namedWindow("Blured Image", cv::WINDOW_AUTOSIZE);// Create a window for display.
     cv::imshow("Blured Image", newImage);            // Show our image inside it.
+
+    std::cout << "finish\n";
 
     cv::waitKey(0);
 }

@@ -1,7 +1,7 @@
 __kernel void gaussian_blur(
-        __global uchar * image,
+        __global uchar * image, //bgr
         //__constant float * mask,
-        __global uchar4 * blurredImage,
+        __global uchar4 * blurredImage, //bgra
 	int imageWidth,
 	int imageHeight,
         __private int maskSize
@@ -16,17 +16,19 @@ __kernel void gaussian_blur(
 
     int blurPos = ypos * imageWidth + xpos;
     int imgPos = blurPos * 3;
-    uchar4 sum = 0;
+    uchar sum0 = 0;
+    uchar sum1 = 0;
+    uchar sum2 = 0;
 
     for (int i = -r; i <= r; i++) {
 	for (int j = -r; j <= r; j++) {
-	    sum = sum + image[imgPos - imageWidth * j * 3 + i * 3] / (maskSize * maskSize);
+	    sum0 = sum0 + image[imgPos - imageWidth * j * 3 + i * 3] / (maskSize * maskSize);
+	    sum1 = sum1 + image[imgPos - imageWidth * j * 3 + i * 3 + 1] / (maskSize * maskSize);
+	    sum2 = sum2 + image[imgPos - imageWidth * j * 3 + i * 3 + 2] / (maskSize * maskSize);
 	}
     }
-    //blurredImage[blurPos] = sum;
-
-    blurredImage[blurPos].x = image[imgPos];
-    blurredImage[blurPos].y = image[imgPos + 1];
-    blurredImage[blurPos].z = image[imgPos + 2];
-    blurredImage[blurPos].w = 100;
+    blurredImage[blurPos].x = sum0;
+    blurredImage[blurPos].y = sum1;
+    blurredImage[blurPos].z = sum2;
+    blurredImage[blurPos].w = 255;
 }

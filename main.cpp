@@ -140,7 +140,7 @@ int main( int argc, char** argv )
     std::cout << "clResult error: " << err << "\n";
 
     // Create Gaussian mask
-    int maskSize = 3;  // maskSize x maskSize square
+    int maskSize = 5;  // maskSize x maskSize square
     //float * mask = createBlurMask(10.0f, &maskSize);
 
     // Create buffer for mask
